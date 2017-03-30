@@ -159,4 +159,81 @@ describe('Plugin', function() {
     return plugin.compile({data: content, path: 'vendor/file.js'})
       .then(result => result.data.should.be.equal(content));
   });
+
+  describe('compile filtering based on custom comment pattern', () => {
+    it('should pass through content that doesnt match a given pattern regex', () => {
+      const content = 'asdf';
+
+      plugin = new Plugin({
+        paths: {root: '.'},
+        plugins: {
+          babel: {
+            parserOpts: {commentPattern: /esversion:6/},
+          },
+        },
+      });
+
+      return plugin.compile({data: content, path: 'file.jsx'})
+        .then(result => result.data.should.be.equal(content));
+    });
+
+    it('should compile content that contains a comment matching a given regex', () => {
+      const content = '// esversion: 6\nconst foo = true;';
+      const expected = '// esversion: 6\nvar foo = true;';
+
+      plugin = new Plugin({
+        paths: {root: '.'},
+        plugins: {
+          babel: {
+            parserOpts: {commentPattern: /esversion: 6/},
+          },
+        },
+      });
+
+      return plugin.compile({data: content, path: 'file.jsx'})
+        .then(result => result.data.should.contain(expected));
+    });
+
+    it('should compile content that contains a comment matching a given string', () => {
+      const content = '// esversion: 6\nconst foo = true;';
+      const expected = '// esversion: 6\nvar foo = true;';
+
+      plugin = new Plugin({
+        paths: {root: '.'},
+        plugins: {
+          babel: {
+            parserOpts: {commentPattern: 'esversion: 6'},
+          },
+        },
+      });
+
+      return plugin.compile({data: content, path: 'file.jsx'})
+        .then(result => result.data.should.contain(expected));
+    });
+
+    it('should compile content that contains a comment matching a given array of patterns', () => {
+      const content = '// esversion: 6\nconst foo = true;';
+      const expected = '// esversion: 6\nvar foo = true;';
+
+      const content2 = '// esversion:6\nconst foo = true;';
+      const expected2 = '// esversion:6\nvar foo = true;';
+
+      plugin = new Plugin({
+        paths: {root: '.'},
+        plugins: {
+          babel: {
+            parserOpts: {commentPattern: ['esversion: 6', /esversion:6/]},
+          },
+        },
+      });
+
+      const test1 = plugin.compile({data: content, path: 'file.jsx'})
+        .then(result => result.data.should.contain(expected));
+
+      const test2 = plugin.compile({data: content2, path: 'file.jsx'})
+        .then(result => result.data.should.contain(expected2));
+
+      return Promise.all([test1, test2]);
+    });
+  });
 });

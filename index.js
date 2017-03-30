@@ -88,6 +88,20 @@ class BabelCompiler {
         return;
       }
 
+      const hasCommentPattern =
+        this.options.parserOpts &&
+        this.options.parserOpts.commentPattern;
+
+      if (hasCommentPattern) {
+        const matches = compiled.ast.comments
+          .filter(this.matchCommentPattern.bind(this));
+
+        if (!matches.length) {
+          resolve(file);
+          return;
+        }
+      }
+
       const result = {data: compiled.code || compiled};
 
       // Concatenation is broken by trailing comments in files, which occur
@@ -97,6 +111,46 @@ class BabelCompiler {
       if (compiled.map) result.map = JSON.stringify(compiled.map);
       resolve(result);
     });
+  }
+
+  matchCommentPattern({value}) {
+    const {commentPattern} = this.options.parserOpts;
+
+    const getPatternType = pattern => {
+      if (typeof pattern === 'string') {
+        return 'string';
+      } else if (pattern instanceof RegExp) {
+        return 'regex';
+      } else if (Array.isArray(pattern)) {
+        return 'array';
+      }
+
+      return undefined;
+    };
+
+    const match = (type, pattern) => {
+      switch (type) {
+        case 'string':
+          return value.includes(pattern);
+        case 'regex':
+          return pattern.test(value);
+        default:
+          return false;
+      }
+    };
+
+    const type = getPatternType(commentPattern);
+
+    if (type === 'array') {
+      const matches = commentPattern.filter(pattern => {
+        const type = getPatternType(pattern);
+        return match(type, pattern);
+      });
+
+      return Boolean(matches.length);
+    }
+
+    return match(type, commentPattern);
   }
 }
 
